@@ -44,12 +44,9 @@ def myProcessRequest(req):
     sessionId = req.get('sessionId')
     parameters = req.get('result').get('parameters')
     url = parameters.get('url')
-    soup = BeautifulSoup(urlopen(url))
 
     soup = BeautifulSoup(urlopen(url), 'lxml')
     title = soup.title.string
-
-    print(sessionId, parameters, title)
 
     if title:
         text = random.choice(list(map(lambda x: x.format(title = title),
