@@ -33,7 +33,7 @@ def webhook():
 
     # Send the response as json string in this format
     # https://docs.api.ai/docs/webhook#section-sample-response-from-the-service
-    response = make_response(json.dumps(res, indent=4))
+    response = make_response(json.dumps(res))
     response.headers['Content-Type'] = 'application/json'
     return response
 
@@ -50,14 +50,15 @@ def myProcessRequest(req):
     title = soup.title.string
 
     if title:
-        text = random.choice([f'Sure, give me a second to read "{title}"',
-            'Nice: "{title}" I'll read it in a moment ;)',
-            'Mmm... "{title}" Have you seen my glasses?',
-            'Interesting! Let me have a look to this "{title}"'
-            ])
-            threading.Thread(target=analyzeArticle, args=[sessionId, url], daemon=True).start()
-    else
-        text = 'Sorry, I can't read this now'
+        text = random.choice(list(map(lambda x: x.format(title = title),
+            ['Sure, give me a second to read "{title}"',
+                'Nice: "{title}" I\'ll read it in a moment ;)',
+                'Mmm... "{title}" Have you seen my glasses?',
+                'Interesting! Let me have a look to this "{title}"'
+            ])))
+        threading.Thread(target=analyzeArticle, args=[sessionId, url], daemon=True).start()
+    else:
+        text = 'Sorry, I can\'t read this now'
 
     return {
         'speech': text,
@@ -69,10 +70,22 @@ def myProcessRequest(req):
 
 def analyzeArticle(sessionId, url):
     time.sleep(3)
-    payload = {
-        'event'
+    headers = {
+        'Authorization': 'Bearer ' + os.environ['API_AI_KEY'],
+        'Content-Type': 'application/json',
+        'charset': 'utf-8'
     }
-    requests.post('', json=payload)
+    payload = {
+        'event': 'write-back',
+        'data': {
+            'message':'Some time later...'
+        },
+        'sessionId': sessionId,
+        'lang':'en',
+        'v': '20150910'
+
+    }
+    requests.post('https://api.api.ai/v1/query/', json=payload, headers=headers)
 
 def processRequest(req):
     if req.get('result').get('action') != 'analyze-article':
