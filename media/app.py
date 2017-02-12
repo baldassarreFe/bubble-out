@@ -49,6 +49,8 @@ def myProcessRequest(req):
     soup = BeautifulSoup(urlopen(url), 'lxml')
     title = soup.title.string
 
+    print(sessionId, parameters, title)
+
     if title:
         text = random.choice(list(map(lambda x: x.format(title = title),
             ['Sure, give me a second to read "{title}"',
@@ -56,7 +58,7 @@ def myProcessRequest(req):
                 'Mmm... "{title}" Have you seen my glasses?',
                 'Interesting! Let me have a look to this "{title}"'
             ])))
-        threading.Thread(target=analyzeArticle, args=[sessionId, url], daemon=True).start()
+        # threading.Thread(target=analyzeArticle, args=[sessionId, url], daemon=True).start()
     else:
         text = 'Sorry, I can\'t read this now'
 
