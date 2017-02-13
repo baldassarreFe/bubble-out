@@ -1,1 +1,1 @@
-web: python3 media/app.py --log-file -
+web: python3 bubble/app.py --log-file -
