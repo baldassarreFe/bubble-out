@@ -10,11 +10,20 @@ from flask import Flask
 from flask import request
 from flask import make_response
 
+from watson_developer_cloud import AlchemyLanguageV1
+from watson_developer_cloud import PersonalityInsightsV3
+
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
 # Flask app should start in global layout
 app = Flask(__name__)
+
+alchemy_language = AlchemyLanguageV1(api_key = os.environ['ALCHEMY_API_KEY'])
+personality_insights = PersonalityInsightsV3(
+    version = '2016-10-20',
+    username = os.environ['PERSONALITY_API_USER'],
+    password = os.environ['PERSONALITY_API_PWD'])
 
 @app.route('/', methods=['GET','POST'])
 def hello():
@@ -57,7 +66,8 @@ def myProcessRequest(req):
                 'Interesting! Let me have a look to this "{title}"'
             ])))
         threading.Thread(target=analyzeArticle, args=[facebookId, url], daemon=True).start()
-        threading.Thread(target=analyzeArticle2, args=[sessionId, url], daemon=True).start()
+        threading.Thread(target=analyzePersonality, args=[facebookId, url], daemon=True).start()
+        # threading.Thread(target=analyzeArticle2, args=[sessionId, url], daemon=True).start()
     else:
         text = 'Sorry, I can\'t read this now'
 
@@ -70,7 +80,32 @@ def myProcessRequest(req):
     }
 
 def analyzeArticle(facebookId, url):
-    time.sleep(3)
+    # Perform analysis
+    combined_operations = ['keyword', 'author', 'concept', 'pub-date', 'doc-emotion']
+    analysis = alchemy_language.combined(url=url,
+        # sentiment=1,
+        extract=combined_operations)
+
+    keywords = [kw.get('text') for kw in analysis.get('keywords')
+        if float(kw.get('relevance'))>0.55]
+    concepts = [c.get('text') for c in analysis.get('concepts')
+        if float(c.get('relevance'))>0.55]
+    publicationDate = datetime.datetime.strptime(
+        analysis.get('publicationDate').get('date'),
+        '%Y%m%dT%H%M%S')
+    emotions = [e for e in  analysis.get('docEmotions')
+        if float(analysis.get('docEmotions').get(e))>0.3]
+    author = analysis.get('author')
+
+    message = 'I see you are reading an article by {author}, published on {publicationDate} which is about {concepts}... Interesting!'.format(
+        author=author,
+        publicationDate=publicationDate.strftime('%d %B %Y'),
+        concepts=', '.join(concepts))
+
+    sendFbMessage(facebookId, message)
+
+# Send results back to facebook
+def sendFbMessage(facebookId, message):
     params = {
         'access_token': os.environ['MESSENGER_PAGE_KEY']
     }
@@ -83,12 +118,25 @@ def analyzeArticle(facebookId, url):
         "id": facebookId
       },
       "message": {
-        "text": "FB Some time later.."
+        "text": message
       }
     }
     response = requests.post('https://graph.facebook.com/v2.6/me/messages', params=params, json=payload, headers=headers)
     if response.status_code != requests.codes.ok:
         print('Callback response:\n', json.dumps(response.json(), indent=4))
+
+def analyzePersonality(facebookId, url):
+    # textjson = alchemy_language.text(url=url)
+    text = textjson.get('text')
+
+    # profile = personality_insights.profile(
+    #    text,
+    #    raw_scores=True,
+    #    consumption_preferences=True)
+
+    message = 'Personality coming soon'
+
+    sendFbMessage(facebookId, message)
 
 def analyzeArticle2(sessionId, url):
     time.sleep(3)
