@@ -42,6 +42,7 @@ def myProcessRequest(req):
         return {}
 
     sessionId = req.get('sessionId')
+    facebookId = req.get('originalRequest').get('data').get('sender').get('id')
     parameters = req.get('result').get('parameters')
     url = parameters.get('url')
 
@@ -55,7 +56,8 @@ def myProcessRequest(req):
                 'Mmm... "{title}" Have you seen my glasses?',
                 'Interesting! Let me have a look to this "{title}"'
             ])))
-        threading.Thread(target=analyzeArticle, args=[sessionId, url], daemon=True).start()
+        threading.Thread(target=analyzeArticle, args=[facebookId, url], daemon=True).start()
+        threading.Thread(target=analyzeArticle2, args=[sessionId, url], daemon=True).start()
     else:
         text = 'Sorry, I can\'t read this now'
 
@@ -67,7 +69,28 @@ def myProcessRequest(req):
         'source': 'bubble-out-prototype'
     }
 
-def analyzeArticle(sessionId, url):
+def analyzeArticle(facebookId, url):
+    time.sleep(3)
+    params = {
+        'access_token': os.environ['MESSENGER_PAGE_KEY']
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'charset': 'utf-8'
+    }
+    payload = {
+      "recipient": {
+        "id": facebookId
+      },
+      "message": {
+        "text": "FB Some time later.."
+      }
+    }
+    response = requests.post('https://graph.facebook.com/v2.6/me/messages', params=params, json=payload, headers=headers)
+    if response.status_code != requests.codes.ok:
+        print('Callback response:\n', json.dumps(response.json(), indent=4))
+
+def analyzeArticle2(sessionId, url):
     time.sleep(3)
     headers = {
         'Authorization': 'Bearer ' + os.environ['API_AI_KEY'],
@@ -78,7 +101,7 @@ def analyzeArticle(sessionId, url):
         'event': {
             'name': 'write-back',
             'data': {
-                'message':'Some time later...'
+                'message':'API Some time later...'
                 }
         },
         'sessionId': sessionId,
@@ -86,7 +109,8 @@ def analyzeArticle(sessionId, url):
         'v': '20150910'
     }
     response = requests.post('https://api.api.ai/v1/query/', json=payload, headers=headers)
-    print('Callback response:\n', json.dumps(response.json(), indent=4))
+    if response.status_code != requests.codes.ok:
+        print('Callback response:\n', json.dumps(response.json(), indent=4))
 
 def processRequest(req):
     if req.get('result').get('action') != 'analyze-article':
